@@ -1,0 +1,45 @@
+name: Daily job radar
+
+on:
+  schedule:
+    # 9:00 AM local time — see README "Scheduling" section for how this UTC
+    # value was derived from config.json's schedule/timezone. Update twice a
+    # year if your timezone observes DST and you want strict 9am local.
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: Write config and profile from secrets
+        run: |
+          echo "${{ secrets.CONFIG_JSON }}" > config.json
+          echo "${{ secrets.PROFILE_JSON }}" > profile.json
+
+      - name: Run pipeline
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python -m src.pipeline
+
+      - name: Persist job database
+        run: |
+          if ! git diff --quiet -- data/jobs.db; then
+            git config user.name "job-scout-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add data/jobs.db
+            git commit -m "chore: update job database [skip ci]"
+            git push
+          fi

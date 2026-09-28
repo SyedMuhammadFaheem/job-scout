@@ -1,0 +1,37 @@
+{
+  "target_titles": ["Software Engineer", "Backend Engineer"],
+  "include_keywords": ["python", "backend"],
+  "exclude_keywords": ["senior", "staff", "principal", "director"],
+  "years_experience": 2,
+  "locations": ["Remote", "New York, NY"],
+  "work_modes": ["remote"],
+  "sources": {
+    "remoteok": {"enabled": true},
+    "remotive": {"enabled": true},
+    "arbeitnow": {"enabled": true},
+    "jobicy": {"enabled": true},
+    "weworkremotely": {"enabled": true, "categories": ["remote-full-time-programming"]},
+    "himalayas": {"enabled": true},
+    "hn_hiring": {"enabled": true},
+    "greenhouse": {"enabled": true, "companies": []},
+    "lever": {"enabled": true, "companies": []},
+    "google_alerts": {"enabled": true, "feed_urls": []}
+  },
+  "matching": {
+    "weights": {
+      "title": 3,
+      "skills": 2,
+      "keywords": 1,
+      "experience": 2,
+      "location": 2,
+      "recency": 1
+    },
+    "min_score": 4
+  },
+  "schedule": "09:00",
+  "timezone": "America/New_York",
+  "email": {
+    "to": "you@example.com"
+  },
+  "max_daily_results": 30
+}

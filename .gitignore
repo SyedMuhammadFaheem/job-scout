@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Personal data — never commit
+profile.json
+config.json
+*.pdf
+*.docx
+resume.*
+
+# data/jobs.db IS committed by the workflow — it only holds public job
+# listings and dedup state, no personal data. Don't ignore it.

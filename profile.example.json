@@ -1,0 +1,13 @@
+{
+  "years_experience": 2,
+  "titles": ["Software Engineer", "Backend Engineer"],
+  "skills": ["Python", "SQL", "Docker"],
+  "technologies": ["PostgreSQL", "AWS"],
+  "domains": ["fintech"],
+  "locations": ["Remote", "New York, NY"],
+  "work_modes": ["remote"],
+  "education": ["BS Computer Science"],
+  "certifications": [],
+  "keywords": ["backend", "distributed systems"],
+  "exclude_keywords": ["senior", "staff", "principal"]
+}

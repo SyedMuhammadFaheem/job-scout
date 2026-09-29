@@ -2,10 +2,8 @@ name: Daily job radar
 
 on:
   schedule:
-    # 9:00 AM local time — see README "Scheduling" section for how this UTC
-    # value was derived from config.json's schedule/timezone. Update twice a
-    # year if your timezone observes DST and you want strict 9am local.
-    - cron: "0 13 * * *"
+    # 9:00 AM Asia/Karachi (UTC+5, no DST) = 04:00 UTC
+    - cron: "0 4 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -24,9 +22,13 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Write config and profile from secrets
+        env:
+          CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
+          PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
         run: |
-          echo "${{ secrets.CONFIG_JSON }}" > config.json
-          echo "${{ secrets.PROFILE_JSON }}" > profile.json
+          printf '%s' "$CONFIG_JSON" > config.json
+          printf '%s' "$PROFILE_JSON" > profile.json
+          python -c "import json; json.load(open('config.json')); json.load(open('profile.json'))"
 
       - name: Run pipeline
         env:

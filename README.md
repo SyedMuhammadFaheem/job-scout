@@ -130,7 +130,7 @@ The workflow writes `CONFIG_JSON`/`PROFILE_JSON` out to `config.json`/`profile.j
 
 ## Scheduling
 
-GitHub Actions cron is UTC-only and has no timezone/DST support. `.github/workflows/daily-jobs.yml` hardcodes a UTC cron (`0 13 * * *` = 9:00 AM Eastern during EDT). To match your own timezone:
+GitHub Actions cron is UTC-only and has no timezone/DST support. `.github/workflows/daily-jobs.yml` hardcodes a UTC cron (`0 4 * * *` = 9:00 AM Asia/Karachi). To match your own timezone:
 
 1. Compute the UTC hour for 9:00 AM in your timezone.
 2. Update the `cron:` line in the workflow file.

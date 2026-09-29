@@ -2,7 +2,7 @@ name: Daily job radar
 
 on:
   schedule:
-    # 9:00 AM Asia/Karachi (UTC+5, no DST) = 04:00 UTC
+    # 04:00 UTC = 9:00 AM Asia/Karachi. Change to 9 AM in your timezone (see README "Scheduling").
     - cron: "0 4 * * *"
   workflow_dispatch: {}
 
@@ -13,15 +13,33 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check secrets
+        id: secrets
+        env:
+          CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
+          PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          if [ -n "$CONFIG_JSON" ] && [ -n "$PROFILE_JSON" ] && [ -n "$GMAIL_ADDRESS" ] && [ -n "$GMAIL_APP_PASSWORD" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Secrets not configured, skipping run. See README > Quickstart."
+          fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+        if: steps.secrets.outputs.ok == 'true'
+
+      - uses: actions/setup-python@v6
+        if: steps.secrets.outputs.ok == 'true'
         with:
           python-version: "3.11"
 
       - run: pip install -r requirements.txt
+        if: steps.secrets.outputs.ok == 'true'
 
       - name: Write config and profile from secrets
+        if: steps.secrets.outputs.ok == 'true'
         env:
           CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
           PROFILE_JSON: ${{ secrets.PROFILE_JSON }}
@@ -31,17 +49,19 @@ jobs:
           python -c "import json; json.load(open('config.json')); json.load(open('profile.json'))"
 
       - name: Run pipeline
+        if: steps.secrets.outputs.ok == 'true'
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python -m src.pipeline
 
       - name: Persist job database
+        if: steps.secrets.outputs.ok == 'true'
         run: |
-          if ! git diff --quiet -- data/jobs.db; then
+          git add data/jobs.db
+          if ! git diff --cached --quiet; then
             git config user.name "job-scout-bot"
             git config user.email "actions@users.noreply.github.com"
-            git add data/jobs.db
             git commit -m "chore: update job database [skip ci]"
             git push
           fi

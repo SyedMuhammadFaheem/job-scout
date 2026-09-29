@@ -1,6 +1,18 @@
 # job-scout
 
-A zero-cost personal job radar. GitHub Actions runs a pure-Python pipeline once a day: fetch ~9 free job sources, filter deterministically against your resume profile, dedupe, and email new matches via Gmail SMTP. No paid APIs, no LLM calls in the daily pipeline, no always-on server.
+[![Tests](https://github.com/SyedMuhammadFaheem/job-scout/actions/workflows/tests.yml/badge.svg)](https://github.com/SyedMuhammadFaheem/job-scout/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**A free, self-hosted job radar that emails you new matching jobs every morning.**
+
+job-scout runs on GitHub Actions once a day. It pulls from 10 free job sources, including LinkedIn posts through Google Alerts, scores each job against your resume profile, drops anything it has already sent you, and emails you the new matches through Gmail.
+
+- **$0 to run:** no paid APIs, no servers, no scraping services.
+- **No AI in the daily run:** matching is plain, transparent Python scoring. You use an LLM once, to turn your resume into `profile.json`.
+- **Never repeats a job:** a SQLite history dedupes across days and across sources.
+- **Configurable without code:** titles, keywords, experience, locations, and sources all live in one JSON file.
+
+<p align="center"><img src="docs/email-preview.png" alt="Example daily digest email" width="600"></p>
 
 ## How it works
 
@@ -9,16 +21,24 @@ GitHub Actions (cron) → fetch sources → normalize → match against profile.
   → dedupe against SQLite → email new matches via Gmail SMTP → commit updated DB
 ```
 
-Every step is deterministic Python (stdlib + `requests`/`feedparser`). Claude/LLMs are used **only once**, by you, to turn your resume into `profile.json` during setup — never in the daily run.
+## Quickstart (about 10 minutes)
 
-## One-time setup
+1. **Create your own private copy.** Click **Use this template → Create a new repository** at the top of this page and choose **Private**. Your copy stores your job history, so keep it private.
+2. **Create your profile.** Paste the prompt from [PROFILE_PROMPT.md](PROFILE_PROMPT.md) and your resume into any LLM chat. Save its two outputs as `profile.json` and `config.json` on your machine, then review them.
+3. **Create a Gmail App Password.** Turn on 2-Step Verification, then create an App Password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+4. **Add 4 secrets to your private copy.** With the [GitHub CLI](https://cli.github.com/):
+   ```bash
+   R=<you>/<your-private-repo>
+   gh secret set CONFIG_JSON  -R $R < config.json
+   gh secret set PROFILE_JSON -R $R < profile.json
+   gh secret set GMAIL_ADDRESS -R $R          # the Gmail address that sends the digest
+   gh secret set GMAIL_APP_PASSWORD -R $R     # 16 characters, no spaces
+   ```
+   You can also add them under Settings → Secrets and variables → Actions.
+5. **Set your send time.** Edit the `cron:` line in `.github/workflows/daily-jobs.yml` to 9 AM in your timezone, converted to UTC (see [Scheduling](#scheduling)).
+6. **Test it.** Open Actions → Daily job radar → **Run workflow**. You should get an email, and a `chore: update job database` commit should appear.
 
-1. **Clone/fork this repo.**
-2. **Create your profile.** Copy `profile.example.json` to `profile.json` and fill it in from your resume — either by hand, or by pasting your resume into a chat with Claude and asking it to fill out `profile.json` matching the schema below. `profile.json` is gitignored; it never gets committed.
-3. **Create your config.** Copy `config.example.json` to `config.json` and set your target titles, keywords, locations, and email address (see [Configuration](#configuration) below).
-4. **Set up Gmail SMTP** (see below) and add secrets to your GitHub repo.
-5. **Push `config.json` and `profile.json` contents into GitHub Secrets** (they're gitignored, so the workflow reads them from secrets, not from the repo — see [GitHub Secrets](#github-secrets)).
-6. **Trigger a manual run** via `workflow_dispatch` to confirm everything works, then let the daily cron take over.
+Until all 4 secrets are set, the daily workflow skips itself instead of failing.
 
 ### profile.json
 
@@ -73,7 +93,7 @@ All v1 sources are free and require no API key signup:
 | Lever | ATS API | `api.lever.co/v0/postings/{company}` — **you supply company slugs** |
 | Google Alerts (LinkedIn) | RSS (best-effort) | Google's own RSS export of a saved search — **you supply feed URLs**, see below |
 
-**Not included** (need a free API key you'd have to register for yourself): Adzuna, Jooble, USAJobs. **Excluded from direct access**: LinkedIn, Indeed, Glassdoor, AngelList/Wellfound have no public API/RSS, so scraping them directly would violate their ToS/robots.txt — the Google Alerts source below is how LinkedIn posts get caught without touching LinkedIn's access controls.
+**Excluded from direct access**: LinkedIn, Indeed, Glassdoor, AngelList/Wellfound have no public API/RSS, so scraping them directly would violate their ToS/robots.txt — the Google Alerts source below is how LinkedIn posts get caught without touching LinkedIn's access controls.
 
 ### Catching LinkedIn (and other blocked-site) posts via Google Alerts
 
@@ -98,7 +118,18 @@ Notes:
 - Google Alerts updates its feed periodically (not instantly), which is fine for a once-daily digest.
 - `application_url` points at the real LinkedIn (or other) post — Google Alerts links wrap it as a redirect, which the adapter unwraps.
 
+### Sources wanted
+
+These have free APIs that need a free key. PRs are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+- [Adzuna](https://developer.adzuna.com/)
+- [Jooble](https://jooble.org/api/about)
+- [USAJobs](https://developer.usajobs.gov/)
+- More public Greenhouse/Lever/Ashby company boards
+
 ### Adding a new source
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules and checklist. In short:
 
 1. Create `src/adapters/<name>.py` with a class inheriting `SourceAdapter` (see `src/adapters/base.py`).
 2. Implement `fetch()` (network call, use `self._get(url)` for built-in timeout/retry) and `normalize(raw)` (return a list of dicts via `self.make_job(...)`).
@@ -140,7 +171,7 @@ GitHub Actions cron is UTC-only and has no timezone/DST support. `.github/workfl
 
 ## Persistence
 
-The dedup database (`data/jobs.db`) is committed back to the repo by the workflow after each run (it only contains public job-listing data and dedup fingerprints — no personal data). This is what guarantees a job is never emailed twice, even across separate Action runs.
+The workflow commits the dedup database (`data/jobs.db`) back to your copy after each run. That is what keeps a job from being emailed twice across runs. The database also stores each job's match reasons, which reveal your skills, so keep your copy private.
 
 ## Running locally
 
@@ -169,4 +200,8 @@ Tests use fixture payloads for adapter `normalize()` methods and mock data for m
 
 ## Privacy
 
-`profile.json`, `config.json`, and any resume files are gitignored and never committed. Only `profile.example.json` / `config.example.json` (placeholders) ship in the repo.
+`profile.json`, `config.json`, and resume files are gitignored and never committed. The workflow reads them from GitHub Secrets. Only the placeholder `profile.example.json` and `config.example.json` ship in the repo.
+
+## License
+
+[MIT](LICENSE)
